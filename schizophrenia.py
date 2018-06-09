@@ -1,128 +1,145 @@
+import sys
+
+import numpy as np
 import pandas as pd
+from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.model_selection import LeaveOneOut
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-
-with open('data/train_labels.csv') as labelsFile:
-	trainLabels = pd.read_csv(labelsFile)
-
-with open('data/train_Comb.csv') as featuresFile:
-	trainComb = pd.read_csv(featuresFile)
-
-"""# **Data** preparation"""
-
-mydata = trainComb.drop('Id', axis=1)  # Separating out the data
-labels = trainLabels["Class"].values.tolist()
-features = []
-for ind, data in mydata.iterrows():
-	features.append(data.values.tolist())
-
-train_x, test_x, train_y, test_y = train_test_split(features, labels, test_size=0.2, random_state=None)
-
-scaler = StandardScaler()
-# Fit on training set only.
-scaler.fit(train_x)
-# Apply transform to both the training set and the test set.
-train_x = scaler.transform(train_x)
-test_x = scaler.transform(test_x)
-# Make an instance of the Model
-pca = PCA(.99)
-pca.fit(train_x)
-print("Number of minimum number of principal components such that 99% of the variance is retained is", format(pca.n_components_))
-# Apply the mapping (transform) 
-train_x = pca.transform(train_x)
-test_x = pca.transform(test_x)
-
-"""# **SVM classifiers**"""
-
-# Initializing Support vector machines (SVM) classifiers
-clfSvmLinear = SVC(kernel='linear')
-clfSvmPoly = SVC(kernel='poly')
-clfSvmSigmoid = SVC(kernel='sigmoid')
-clfSvmRbf = SVC(kernel='rbf')
-# Training Support vector machines (SVM) classifiers
-clfSvmLinear.fit(train_x, train_y)
-clfSvmPoly.fit(train_x, train_y)
-clfSvmSigmoid.fit(train_x, train_y)
-clfSvmRbf.fit(train_x, train_y)
-# Calculate scoring Support vector machines (SVM) classifiers
-scoreSvmLinear = clfSvmLinear.score(test_x, test_y) * 100
-scoreSvmPoly = clfSvmPoly.score(test_x, test_y) * 100
-scoreSvmSigmoid = clfSvmSigmoid.score(test_x, test_y) * 100
-scoreSvmRbf = clfSvmRbf.score(test_x, test_y) * 100
-# Cross-validation
-scoreSvmLinearCV = cross_val_score(clfSvmLinear, features, labels, cv=10).mean() * 100
-scoreSvmPolyCV = cross_val_score(clfSvmPoly, features, labels, cv=10).mean() * 100
-scoreSvmSigmoidCV = cross_val_score(clfSvmSigmoid, features, labels, cv=10).mean() * 100
-scoreSvmRbfCV = cross_val_score(clfSvmRbf, features, labels, cv=10).mean() * 100
-# Outputs Support vector machines (SVM) classifiers
-print("Linear SVM Accuracy {}".format(scoreSvmLinear))
-print("Mean score of cross validation in linear SVM {}".format(scoreSvmLinearCV))
-print("Polynomial SVM Accuracy {}".format(scoreSvmPoly))
-print("Mean score of cross validation in polynomial SVM {}".format(scoreSvmPolyCV))
-print("Sigmoid SVM Accuracy {}".format(scoreSvmSigmoid))
-print("Mean score of cross validation in sigmoid SVM {}".format(scoreSvmSigmoidCV))
-print("Rbf SVM Accuracy {}".format(scoreSvmRbf))
-print("Mean score of cross validation in rbf SVM {}".format(scoreSvmRbfCV))
-
-"""# Decision Tree **Classifier**"""
-
+from sklearn.svm import SVC, NuSVC
 from sklearn.tree import DecisionTreeClassifier
 
-# Initializing Random Forest classifier
-clfDT = DecisionTreeClassifier()
-# Cross-validation
-scoreDTCV = cross_val_score(clfDT, features, labels, cv=10).mean() * 100
-# Training classifiers
-clfDT.fit(train_x, train_y)
-# Calculate scoring classifiers
-scoreDT = clfDT.score(test_x, test_y) * 100
-# Outputs
-print("Decision Tree Accuracy {}".format(scoreDT))
-print("Mean score of cross validation in decision tree {}".format(scoreDTCV))
 
-"""# Random Forest **classifier**"""
+def classify(normalize=False, enablePCA=False, PCAAccuracy=.99):
+	print('* normalize:\t' + str(normalize))
+	print('* enable PCA:\t' + str(enablePCA))
+	if enablePCA:
+		print('* PCA Accuracy:\t' + str(PCAAccuracy))
+	print()
 
-# Initializing Random Forest classifier
-clfRF = RandomForestClassifier()
-# Cross-validation
-scoreRFCV = cross_val_score(clfRF, features, labels, cv=10).mean() * 100
-# Training classifiers
-clfRF.fit(train_x, train_y)
-# Calculate scoring classifiers
-scoreRF = clfRF.score(test_x, test_y) * 100
-# Outputs
-print("Random Forest Accuracy {}".format(scoreRF))
-print("Mean score of cross validation in random forest {}".format(scoreRFCV))
+	with open('data/train_labels.csv') as labelsFile:
+		trainLabels = pd.read_csv(labelsFile)
 
-"""# K-Nearest Neighbours classifier (**KNN**)"""
+	with open('data/train_Comb.csv') as featuresFile:
+		trainComb = pd.read_csv(featuresFile)
 
-# Initializing K-Nearest Neighbours classifier
-clfKNN = KNeighborsClassifier(n_neighbors=3)
-# Cross-validation
-scoreKNNCV = cross_val_score(clfKNN, features, labels, cv=10).mean() * 100
-# Training classifiers
-clfKNN.fit(train_x, train_y)
-# Calculate scoring classifiers
-scoreKNN = clfKNN.score(test_x, test_y) * 100
-# Outputs
-print("K-Nearest Neighbours Accuracy {}".format(scoreKNN))
-print("Mean score of cross validation in K-Nearest Neighbours {}".format(scoreKNNCV))
+	mydata = trainComb.drop('Id', axis=1)  # Separating out the data
 
-"""# Gaussian Naive **Bayes**"""
+	if normalize:
+		min_max_scaler = preprocessing.MinMaxScaler()
+		np_scaled = min_max_scaler.fit_transform(mydata)
+		mydata = pd.DataFrame(np_scaled)
 
-# Initializing K-Nearest Neighbours classifier
-clfGNB = GaussianNB()
-# Cross-validation
-scoreGNBCV = cross_val_score(clfGNB, features, labels, cv=10).mean() * 100
-# Training classifiers
-clfKNN.fit(train_x, train_y)
-# Calculate scoring classifiers
-scoreKNN = clfKNN.score(test_x, test_y) * 100
-# Outputs
-print("K-Nearest Neighbours Accuracy {}".format(scoreKNN))
-print("Mean score of cross validation in K-Nearest Neighbours {}".format(scoreKNNCV))
+	labels = trainLabels["Class"].values
+	features = [data.values.tolist() for ind, data in mydata.iterrows()]
+
+	# Initializing Gaussian Naive Bayes classifier
+	clfGNB = GaussianNB()
+
+	# Initializing Gaussian Processes classifier
+	clfGP = GaussianProcessClassifier()
+
+	# Initializing K-Nearest Neighbours classifier
+	clfKNN = KNeighborsClassifier(n_neighbors=10)
+
+	# Initializing Random Forest classifier
+	clfRFAuto = RandomForestClassifier(n_estimators=1000, criterion='entropy', max_features="auto")
+	clfRFSqrt = RandomForestClassifier(n_estimators=1000, criterion='entropy', max_features="sqrt")
+	clfRFLog = RandomForestClassifier(n_estimators=1000, criterion='entropy', max_features="log2")
+
+	# Initializing Decision Tree classifier
+	clfDT = DecisionTreeClassifier()
+
+	# Initializing Support vector machines (SVM) classifiers
+	clfSvmLinear = SVC(kernel='linear', C=2)
+	clfSvmPoly = SVC(kernel='poly', C=2)
+	clfSvmSigmoid = SVC(kernel='sigmoid', C=2)
+	clfSvmRbf = SVC(kernel='rbf', gamma=0.01, C=2)
+
+	# Initializing Support vector machines (SVM) classifiers
+	clfnuSvmLinear = NuSVC(kernel='linear')
+	clfnuSvmPoly = NuSVC(kernel='poly')
+	clfnuSvmSigmoid = NuSVC(kernel='sigmoid')
+	clfnuSvmRbf = NuSVC(kernel='rbf', gamma=0.01)
+
+	classifierList = [
+		clfKNN,
+		clfGNB,
+		clfRFAuto,
+		clfRFSqrt,
+		clfRFLog,
+		clfGP,
+		clfDT,
+		clfSvmLinear,
+		clfSvmPoly,
+		clfSvmSigmoid,
+		clfSvmRbf,
+		clfnuSvmLinear,
+		clfnuSvmPoly,
+		clfnuSvmSigmoid,
+		clfnuSvmRbf
+	]
+	classifiernames = [
+		'K Nearest Neighbours',
+		'Gaussian Bayes',
+		'Random Forest max_features=auto',
+		'Random Forest max_features=sqrt',
+		'Random Forest max_features=log2',
+		'Gaussian Processes',
+		'Decision Tree',
+		'SVM with Linear kernel',
+		'SVM with Polynomial kernel',
+		'SVM with Sigmoid kernel',
+		'SVM with Rbf kernel',
+		'NuSVM with Linear kernel',
+		'NuSVM with Polynomial kernel',
+		'NuSVM with Sigmoid kernel',
+		'NuSVM with Rbf kernel',
+	]
+	leaveOneOut = LeaveOneOut()
+
+	for index, estimator in enumerate(classifierList):
+		hit = 0
+		print('-\t' + classifiernames[index])
+		for train_index, test_index in leaveOneOut.split(np.array(mydata)):
+			X_train, X_test = np.array(features)[train_index], np.array(features)[test_index]
+			y_train, y_test = np.array(labels)[train_index], np.array(labels)[test_index]
+			if enablePCA:
+				scaler = StandardScaler()
+
+				# Fit on training set only.
+				scaler.fit(X_train)
+				X_train = scaler.transform(X_train)
+
+				# Make an instance of the Model
+				pca = PCA(PCAAccuracy)
+				pca.fit(X_train)
+				# print("\tNumber of minimum number of principal components such that 99% of the variance is retained is", format(enablePCA.n_components_))
+
+				# Apply the mapping (transform)
+				X_train = pca.transform(X_train)
+				X_test = pca.transform(X_test)
+
+			clfFit = estimator.fit(X_train, y_train)
+			hit += clfFit.score(X_test, y_test)
+		print('\tScore: ' + "{0:.2f}".format(hit / len(mydata) * 100) + '\n')
+
+
+if __name__ == '__main__':
+	if len(sys.argv) == 1:
+		classify()
+	elif len(sys.argv) == 2:
+		classify(normalize=sys.argv[1] == 'True')
+	elif len(sys.argv) == 3:
+		classify(normalize=sys.argv[1] == 'True', enablePCA=sys.argv[2] == 'True')
+	elif len(sys.argv) == 4:
+		classify(normalize=sys.argv[1] == 'True', enablePCA=sys.argv[2] == 'True', PCAAccuracy=float(sys.argv[3]))
+	else:
+		print('python ' + sys.argv[0] + '<normalize> <enable PCA> <PCA Accuracy>')
+		print('normalise: True/False')
+		print('enable PCA: True/False')
+		print('PCA Accuracy: float in range of [0, 1]')
