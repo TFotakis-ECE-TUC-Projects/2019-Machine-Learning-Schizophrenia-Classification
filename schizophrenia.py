@@ -5,12 +5,11 @@ import pandas as pd
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.model_selection import LeaveOneOut
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC, NuSVC
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 
@@ -40,16 +39,13 @@ def classify(normalize=False, enablePCA=False, PCAAccuracy=.99):
 	# Initializing Gaussian Naive Bayes classifier
 	clfGNB = GaussianNB()
 
-	# Initializing Gaussian Processes classifier
-	clfGP = GaussianProcessClassifier()
-
 	# Initializing K-Nearest Neighbours classifier
 	clfKNN = KNeighborsClassifier(n_neighbors=10)
 
 	# Initializing Random Forest classifier
-	clfRFAuto = RandomForestClassifier(n_estimators=1000, criterion='entropy', max_features="auto")
-	clfRFSqrt = RandomForestClassifier(n_estimators=1000, criterion='entropy', max_features="sqrt")
-	clfRFLog = RandomForestClassifier(n_estimators=1000, criterion='entropy', max_features="log2")
+	clfRFAuto = RandomForestClassifier(n_estimators=1000)
+	clfRFSqrt = RandomForestClassifier(n_estimators=1000, max_features="sqrt")
+	clfRFLog = RandomForestClassifier(n_estimators=1000, max_features="log2")
 
 	# Initializing Decision Tree classifier
 	clfDT = DecisionTreeClassifier()
@@ -60,45 +56,29 @@ def classify(normalize=False, enablePCA=False, PCAAccuracy=.99):
 	clfSvmSigmoid = SVC(kernel='sigmoid', C=2)
 	clfSvmRbf = SVC(kernel='rbf', gamma=0.01, C=2)
 
-	# Initializing Support vector machines (SVM) classifiers
-	clfnuSvmLinear = NuSVC(kernel='linear')
-	clfnuSvmPoly = NuSVC(kernel='poly')
-	clfnuSvmSigmoid = NuSVC(kernel='sigmoid')
-	clfnuSvmRbf = NuSVC(kernel='rbf', gamma=0.01)
-
 	classifierList = [
 		clfKNN,
 		clfGNB,
 		clfRFAuto,
 		clfRFSqrt,
 		clfRFLog,
-		clfGP,
 		clfDT,
 		clfSvmLinear,
 		clfSvmPoly,
 		clfSvmSigmoid,
 		clfSvmRbf,
-		clfnuSvmLinear,
-		clfnuSvmPoly,
-		clfnuSvmSigmoid,
-		clfnuSvmRbf
 	]
 	classifiernames = [
 		'K Nearest Neighbours',
 		'Gaussian Bayes',
-		'Random Forest max_features=auto',
+		'Random Forest all features',
 		'Random Forest max_features=sqrt',
 		'Random Forest max_features=log2',
-		'Gaussian Processes',
 		'Decision Tree',
 		'SVM with Linear kernel',
 		'SVM with Polynomial kernel',
 		'SVM with Sigmoid kernel',
 		'SVM with Rbf kernel',
-		'NuSVM with Linear kernel',
-		'NuSVM with Polynomial kernel',
-		'NuSVM with Sigmoid kernel',
-		'NuSVM with Rbf kernel',
 	]
 	leaveOneOut = LeaveOneOut()
 

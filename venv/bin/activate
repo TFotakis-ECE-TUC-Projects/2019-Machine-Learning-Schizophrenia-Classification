@@ -37,7 +37,8 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/home/tzanis/Workspace/PyCharm/SchizophreniaClassification/venv"
+VIRTUAL_ENV="./venv"
+#VIRTUAL_ENV="/home/tzanis/Workspace/PyCharm/SchizophreniaClassification/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
